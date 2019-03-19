@@ -1,0 +1,14 @@
+# Check the raid
+cat /proc/mdstat
+
+# Shot info about raid
+mdadm --detail /dev/md1
+
+# Set device as faulty
+mdadm --manage --set-faulty /dev/md1 /dev/sdb2
+
+# Remove faulty device from raid
+mdadm /dev/md1 -r /dev/sdb2
+
+# Add device into raid
+mdadm /dev/md1 -a /dev/sdb2
