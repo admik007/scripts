@@ -1,14 +1,120 @@
-# Check the raid
+RAID0 = (min 2 disks) - DISK1 + DISK2 
+RAID1 = (min 2 disks) - DISK1 = DISK2
+RAID3 = (min 3 disks) - DISK1 + DISK2 | DISK3 (byte) (parity on dedicated disk)
+RAID4 = (min 3 disks) - DISK1 + DISK2 | DISK3 (block) (parity on dedicated disk)
+RAID5 = (min 3 disks) - DISK1 + DISK2 | DISK3 (block) (parity across all disks)
+RAID6 = (min 4 disks) - DISK1 + DISK2 | DISK3 | DISK4 (block) (double parity acress all disks)
+
+# CHECK THE RAID
 cat /proc/mdstat
 
-# Shot info about raid
-mdadm --detail /dev/md1
+# SHORT INFO ABOUT RAID
+mdadm --detail /dev/md0
 
-# Set device as faulty
-mdadm --manage --set-faulty /dev/md1 /dev/sdb2
+## EXAMPLE - CREATE RAID5 FROM 4 DISKS, SET DISTS AS FAULTY AND REPLACE IT FOR BIGGER ON BY ONE, AT THE END, EXTEND THE ARRAY
 
-# Remove faulty device from raid
-mdadm /dev/md1 -r /dev/sdb2
+# CREATE EMPTY DISKS
+dd if=/dev/zero of=/data1/raid_disk/disk_01.img bs=1k count=1000000
+dd if=/dev/zero of=/data1/raid_disk/disk_02.img bs=1k count=1000000
+dd if=/dev/zero of=/data1/raid_disk/disk_03.img bs=1k count=1000000
+dd if=/dev/zero of=/data1/raid_disk/disk_04.img bs=1k count=1000000
 
-# Add device into raid
-mdadm /dev/md1 -a /dev/sdb2
+# MOUNT IT LOCALLY
+losetup /dev/loop1 /data1/raid_disk/disk_01.img
+losetup /dev/loop2 /data1/raid_disk/disk_02.img
+losetup /dev/loop3 /data1/raid_disk/disk_03.img
+losetup /dev/loop4 /data1/raid_disk/disk_04.img
+
+# CREATE RAID5 AND MOUNT IT
+mdadm --create /dev/md0 --level=5 --raid-devices=4 /dev/loop1 /dev/loop2 /dev/loop3 /dev/loop4
+mkfs.ext4 /dev/md0
+mkdir -p /mnt/md0
+mount /dev/md0 /mnt/md0
+>> /dev/md0        2.8G  8.6M  2.6G   1% /mnt/md0
+
+# GENERATE SOME FILES
+for i in `seq 1 100`; do rand=`echo $RANDOM`; dd if=/dev/zero of=/mnt/md0/${rand} bs=1k count=${rand}; done
+
+# DRIVE 4 - MARK DRIVE ARE FAIL, REMOVE IT, UNMOUNT, "REPLACE" DISK, MOUNT IT, ADD TO ARRAY
+mdadm --manage /dev/md0 --fail /dev/loop4
+mdadm --manage /dev/md0 --remove /dev/loop4
+losetup -d /dev/loop4
+dd if=/dev/zero of=/data1/raid_disk/disk_04.img bs=1k count=2000000
+losetup /dev/loop4 /data1/raid_disk/disk_04.img
+mdadm --manage /dev/md0 --add /dev/loop4
+
+# CHECK THE STATUS OF RECOVERY
+cat /proc/mdstat
+mdadm --detail /dev/md0
+
+# DRIVE 3 - MARK DRIVE ARE FAIL, REMOVE IT, UNMOUNT, "REPLACE" DISK, MOUNT IT, ADD TO ARRAY
+mdadm --manage /dev/md0 --fail /dev/loop3
+mdadm --manage /dev/md0 --remove /dev/loop3
+losetup -d /dev/loop3
+dd if=/dev/zero of=/data1/raid_disk/disk_03.img bs=1k count=2000000
+losetup /dev/loop3 /data1/raid_disk/disk_03.img
+mdadm --manage /dev/md0 --add /dev/loop3
+
+# CHECK THE STATUS OF RECOVERY
+cat /proc/mdstat
+mdadm --detail /dev/md0
+
+# DRIVE 2 - MARK DRIVE ARE FAIL, REMOVE IT, UNMOUNT, "REPLACE" DISK, MOUNT IT, ADD TO ARRAY
+mdadm --manage /dev/md0 --fail /dev/loop2
+mdadm --manage /dev/md0 --remove /dev/loop2
+losetup -d /dev/loop2
+dd if=/dev/zero of=/data1/raid_disk/disk_02.img bs=1k count=2000000
+losetup /dev/loop2 /data1/raid_disk/disk_02.img
+mdadm --manage /dev/md0 --add /dev/loop2
+
+# CHECK THE STATUS OF RECOVERY
+cat /proc/mdstat
+mdadm --detail /dev/md0
+
+# DRIVE 1 - MARK DRIVE ARE FAIL, REMOVE IT, UNMOUNT, "REPLACE" DISK, MOUNT IT, ADD TO ARRAY
+mdadm --manage /dev/md0 --fail /dev/loop1
+mdadm --manage /dev/md0 --remove /dev/loop1
+losetup -d /dev/loop1
+dd if=/dev/zero of=/data1/raid_disk/disk_01.img bs=1k count=2000000
+losetup /dev/loop1 /data1/raid_disk/disk_01.img
+mdadm --manage /dev/md0 --add /dev/loop1
+
+# CHECK THE STATUS OF RECOVERY
+cat /proc/mdstat
+mdadm --detail /dev/md0
+
+        Array Size : 2993664 (2.85 GiB 3.07 GB)
+
+# EXPAND ARRAY WITH MAX CAPACITY
+mdadm --grow /dev/md0 --bitmap none
+mdadm --grow /dev/md0 --size=max
+#        Array Size : 5993472 (5.72 GiB 6.14 GB)
+
+# UNMOUNT, CLEAN, RESIZE FS, MOUNT
+>> /dev/md0        2.8G  8.6M  2.6G   1% /mnt/md0
+umount /mnt/md0
+fsck.ext4 -f /dev/md0
+resize2fs /dev/md0
+mount /dev/md0 /mnt/md0
+>> /dev/md0        5.6G   12M  5.3G   1% /mnt/md0
+
+# UMOUNT, REMOVE DISKS, UNMOUNT DISKS, STOP ARRAY, DELETE ARARY, DELETE "LOCAL" DISKS
+umount /mnt/md0
+mdadm --manage /dev/md0 --fail /dev/loop4
+mdadm --manage /dev/md0 --remove /dev/loop4
+mdadm --manage /dev/md0 --fail /dev/loop3
+mdadm --manage /dev/md0 --remove /dev/loop3
+mdadm --manage /dev/md0 --fail /dev/loop2
+mdadm --manage /dev/md0 --remove /dev/loop2
+mdadm --manage /dev/md0 --fail /dev/loop1
+mdadm --manage /dev/md0 --remove /dev/loop1
+losetup -d /dev/loop4
+losetup -d /dev/loop3
+losetup -d /dev/loop2
+losetup -d /dev/loop1
+mdadm --stop /dev/md0
+mdadm --remove /dev/md0
+rm -f /data1/raid_disk/disk_01.img
+rm -f /data1/raid_disk/disk_02.img
+rm -f /data1/raid_disk/disk_03.img
+rm -f /data1/raid_disk/disk_04.img
