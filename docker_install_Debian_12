@@ -17,7 +17,7 @@ docker-compose --version
 AUSTRALIA-OCEANIA       Processing: Node(190436k 378.6k/s) Way(15573k 91.61k/s) Relation(267170 418.76/s)  parse time: 1311s
 CENTRAL-AMERICA         Processing: Node(106180k 387.5k/s) Way(15645k 151.90k/s) Relation(66570 443.80/s)  parse time: 527s
 SOUTH-AMERICA           Processing: Node(559149k 390.5k/s) Way(44291k 13.12k/s) Relation(574710 158.58/s)  parse time: 8431s
-ASIA                            Processing: Node(2070130k 3312.2k/s) Way(254457k 15.82k/s) Relation(2230 16.89/s)
-AFRICA                          Processing: Node(1253807k 3118.9k/s) Way(152074k 34.25k/s) Relation(569270 198.63/s)  parse time: 7708s
+ASIA                    Processing: Node(2070130k 3312.2k/s) Way(254457k 15.82k/s) Relation(2230 16.89/s)
+AFRICA                  Processing: Node(1253807k 3118.9k/s) Way(152074k 34.25k/s) Relation(569270 198.63/s)  parse time: 7708s
 NORTH-AMERICA           Processing: Node(2103838k 3005.5k/s) Way(185499k 12.52k/s) Relation(1642270 153.43/s)
-EUROPE                          Processing: Node(3494358k 376.7k/s) Way(424535k 3.39k/s) Relation(7691070 65.22/s)  parse time: 252266s
+EUROPE                  Processing: Node(3494358k 376.7k/s) Way(424535k 3.39k/s) Relation(7691070 65.22/s)  parse time: 252266s
